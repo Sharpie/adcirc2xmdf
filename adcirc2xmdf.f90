@@ -5,7 +5,9 @@ program adcirc2xmdf
   integer:: argc, stat
   character(len=50):: argv
 
-  double precision, dimension(10):: slice
+  integer, dimension(NF90_MAX_VAR_DIMS):: dims
+  integer:: n_tstep, n_node
+  double precision, dimension(:,:), allocatable:: slice
 
   ! NC_FID = Integer id value corresponding to an opened netCDF file.
   ! NC_VID = Integer id value corresponding to a variable in a netCDF file.
@@ -30,6 +32,7 @@ program adcirc2xmdf
   end if
 
 
+  ! Find sea surface elevation variable.
   stat = nf90_inq_varid(NC_FID, 'zeta', NC_VID)
   if(stat /= NF90_NOERR) then
     write(*,*) nf90_strerror(stat)
@@ -37,13 +40,30 @@ program adcirc2xmdf
   end if
 
 
+  ! Recover dimensions of SSE data set
+  stat = nf90_inquire_variable(NC_FID, NC_VID, dimids = dims)
+  if(stat /= NF90_NOERR) then
+    write(*,*) nf90_strerror(stat)
+    stop "Could not recover dimensions of sea surface elevation!"
+  end if
+
+  ! NOTE: NetCDF stores data in __row major__ order!
+  stat = nf90_inquire_dimension(NC_FID, dims(1), len = n_node)
+  stat = nf90_inquire_dimension(NC_FID, dims(2), len = n_tstep)
+
+  write(*,*) "Number of time steps: ", n_tstep
+  write(*,*) "Number of nodes: ", n_node
+
+  allocate(slice(1,n_node))
+
+
   do i = 1, 10
-    stat = nf90_get_var(NC_FID, NC_VID, slice, (/i, 1/), (/1, 10/))
+    stat = nf90_get_var(NC_FID, NC_VID, slice, (/1, i/), (/10, 1/))
     if(stat /= NF90_NOERR) then
       write(*,*) nf90_strerror(stat)
       stop "Could not extract data!"
     end if
-    write(*,"(10F6.2)") (slice(j), j = 1, 10)
+    write(*,"(10F8.4)") (slice(1,j), j = 1, 10)
   end do
 
 
@@ -53,5 +73,6 @@ program adcirc2xmdf
     stop "WARNING! Errors occurred while closing the netCDF file!"
   end if
 
+  deallocate(slice)
 stop
 end program adcirc2xmdf
