@@ -5,7 +5,7 @@ program adcirc2xmdf
   implicit none
 
   integer:: argc, stat
-  character(len=50):: argv
+  character(len=1000):: argv
 
   integer, dimension(NF90_MAX_VAR_DIMS):: dims
   integer:: n_tstep, n_node
@@ -27,13 +27,12 @@ program adcirc2xmdf
   argc = command_argument_count()
   if (argc == 1) then
     call get_command_argument(1, argv)
-    open(15, file = argv, iostat = stat)
   else
     stop 'Please provide the name of an input file!'
   end if
 
   ! Open input file
-  stat = nf90_open(argv, NF90_NOWRITE, NC_FID)
+  stat = nf90_open(trim(argv), NF90_NOWRITE, NC_FID)
   if(stat /= NF90_NOERR) then
     write(*,*) nf90_strerror(stat)
     stop "Error opening input file!"
