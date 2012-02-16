@@ -1,5 +1,7 @@
 program adcirc2xmdf
   use netcdf
+  use xmdf
+
   implicit none
 
   integer:: argc, stat
@@ -13,6 +15,11 @@ program adcirc2xmdf
   ! NC_VID = Integer id value corresponding to a variable in a netCDF file.
   integer:: NC_FID, NC_VID
 
+  integer:: XF_FID
+
+  ! XMDF subroutine flags require 2 byte logicals for some strange reason
+  logical(kind=2):: XF_FLAG
+
   ! Iteration variables.
   integer:: i, j
 
@@ -25,10 +32,30 @@ program adcirc2xmdf
     stop 'Please provide the name of an input file!'
   end if
 
+  ! Open input file
   stat = nf90_open(argv, NF90_NOWRITE, NC_FID)
   if(stat /= NF90_NOERR) then
     write(*,*) nf90_strerror(stat)
     stop "Error opening input file!"
+  end if
+
+
+  ! Open output file
+  XF_FLAG = .TRUE. ! Overwrite existing files
+  call xf_create_file('adcirc_output.h5', XF_FLAG, XF_FID, stat)
+  if( stat < 0 ) then
+    write(*,*) "XMDF Failed with status code: ", stat
+    stop "Error initializing XMDF file!"
+  end if
+
+  ! Close output so that it can be re-opened in write mode.
+  call xf_close_file(XF_FID, stat)
+
+  XF_FLAG = .FALSE. ! Do not open file in read only mode
+  call xf_open_file('adcirc_output.h5', XF_FLAG, XF_FID, stat)
+  if( stat < 0 ) then
+    write(*,*) "XMDF Failed with status code: ", stat
+    stop "Could not open XMDF output for writing!"
   end if
 
 
@@ -72,6 +99,9 @@ program adcirc2xmdf
     write(*,*) nf90_strerror(stat)
     stop "WARNING! Errors occurred while closing the netCDF file!"
   end if
+
+  call xf_close_file(XF_FID, stat)
+  if ( stat < 0 ) stop 'WARNING! Errors occurred while closing the XMDF file!'
 
   deallocate(slice)
 stop
