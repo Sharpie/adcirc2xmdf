@@ -112,6 +112,9 @@ program adcirc2xmdf
 
 
   do i = 1, n_tstep
+    ! Write out a status indicater. Character 13 is a carrage return that moves
+    ! the cursor back to the beginning of the line.
+    write(*,'(A,A,I3,"%")', advance = 'no') char(13), " Copying Data: ", int(i*100.0/n_tstep)
     stat = nf90_get_var(NC_FID, NC_VID, slice, (/1, i/), (/n_node, 1/))
     if(stat /= NF90_NOERR) then
       write(*,*) nf90_strerror(stat)
@@ -119,6 +122,8 @@ program adcirc2xmdf
     end if
     call xf_write_scalar_timestep(XF_VID, times(i), n_node, real(slice(1,:), 4), stat)
   end do
+  ! Spit out a newline
+  write(*,*)
 
 
   stat = nf90_close(NC_FID)
