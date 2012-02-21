@@ -1,7 +1,34 @@
-program adcirc2xmdf
+module adcirc2xmdf_globals
+  implicit none
+  ! XF_FID = ID value corresponding to opened XMDF file
+  ! XF_GID = ID value corresponding to XMDF variable group
+  integer:: XF_FID, XF_GID
+
+
+end module adcirc2xmdf_globals
+
+
+module adcirc2xmdf_subs
   use netcdf
   use xmdf
+  use adcirc2xmdf_globals
+  implicit none
 
+contains
+
+  subroutine netcdf_error(error_code)
+    integer, intent(in):: error_code
+
+    write(*, *) 'NetCDF Error: ', nf90_strerror(error_code)
+
+  end subroutine netcdf_error
+
+
+end module adcirc2xmdf_subs
+
+
+program adcirc2xmdf
+  use adcirc2xmdf_subs
   implicit none
 
   integer:: argc, stat
@@ -16,12 +43,12 @@ program adcirc2xmdf
   ! NC_VID = Integer id value corresponding to a variable in a netCDF file.
   integer:: NC_FID, NC_VID
 
-  integer:: XF_FID, XF_GID, XF_VID
+  integer:: XF_VID
   ! XMDF subroutine flags require 2 byte logicals for some strange reason
   logical(kind=2):: XF_FLAG
 
   ! Iteration variables.
-  integer:: i, j
+  integer:: i
 
 
   argc = command_argument_count()
@@ -33,10 +60,7 @@ program adcirc2xmdf
 
   ! Open input file
   stat = nf90_open(trim(argv), NF90_NOWRITE, NC_FID)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "Error opening input file!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
 
   ! Open output file
@@ -66,44 +90,37 @@ program adcirc2xmdf
 
   ! Find sea surface elevation time steps
   stat = nf90_inq_varid(NC_FID, 'time', NC_VID)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "Could not recover time steps!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
 
   stat = nf90_inquire_variable(NC_FID, NC_VID, dimids = dims)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "Could not recover dimensions of time step vector!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
   stat = nf90_inquire_dimension(NC_FID, dims(1), len = n_tstep)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
+
   allocate(times(n_tstep))
 
 
   ! FIXME: The timesteps need to be cast into __julian dates__!
   stat = nf90_get_var(NC_FID, NC_VID, times, (/1/), (/n_tstep/))
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
 
   ! Find sea surface elevation variable in NetCDF output.
   stat = nf90_inq_varid(NC_FID, 'zeta', NC_VID)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "Could not locate sea surface elevation!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
 
   ! Recover dimensions of SSE data set
   stat = nf90_inquire_variable(NC_FID, NC_VID, dimids = dims)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "Could not recover dimensions of sea surface elevation!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
   ! NOTE: NetCDF stores data in __row major__ order!
   stat = nf90_inquire_dimension(NC_FID, dims(1), len = n_node)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
   stat = nf90_inquire_dimension(NC_FID, dims(2), len = n_tstep)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
   write(*,*) "Number of time steps: ", n_tstep
   write(*,*) "Number of nodes: ", n_node
@@ -116,10 +133,7 @@ program adcirc2xmdf
     ! the cursor back to the beginning of the line.
     write(*,'(A,A,I3,"%")', advance = 'no') char(13), " Copying Data: ", int(i*100.0/n_tstep)
     stat = nf90_get_var(NC_FID, NC_VID, slice, (/1, i/), (/n_node, 1/))
-    if(stat /= NF90_NOERR) then
-      write(*,*) nf90_strerror(stat)
-      stop "Could not extract data!"
-    end if
+    if(stat /= NF90_NOERR) call netcdf_error(stat)
     call xf_write_scalar_timestep(XF_VID, times(i), n_node, real(slice(1,:), 4), stat)
   end do
   ! Spit out a newline
@@ -127,10 +141,7 @@ program adcirc2xmdf
 
 
   stat = nf90_close(NC_FID)
-  if(stat /= NF90_NOERR) then
-    write(*,*) nf90_strerror(stat)
-    stop "WARNING! Errors occurred while closing the netCDF file!"
-  end if
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
 
   call xf_close_group(XF_GID, stat)
   call xf_close_file(XF_FID, stat)
