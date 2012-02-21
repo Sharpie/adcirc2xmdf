@@ -41,9 +41,9 @@ program adcirc2xmdf
 
   ! NC_FID = Integer id value corresponding to an opened netCDF file.
   ! NC_VID = Integer id value corresponding to a variable in a netCDF file.
-  integer:: NC_FID, NC_VID
+  integer:: NC_FID, NC_VID, NC_VID2
 
-  integer:: XF_VID
+  integer:: XF_VID, XF_VID2
   ! XMDF subroutine flags require 2 byte logicals for some strange reason
   logical(kind=2):: XF_FLAG
 
@@ -51,15 +51,8 @@ program adcirc2xmdf
   integer:: i
 
 
-  argc = command_argument_count()
-  if (argc == 1) then
-    call get_command_argument(1, argv)
-  else
-    stop 'Please provide the name of an input file!'
-  end if
-
-  ! Open input file
-  stat = nf90_open(trim(argv), NF90_NOWRITE, NC_FID)
+  ! Open sea surface elevation input file
+  stat = nf90_open('fort.63.nc', NF90_NOWRITE, NC_FID)
   if(stat /= NF90_NOERR) call netcdf_error(stat)
 
 
@@ -135,6 +128,41 @@ program adcirc2xmdf
     stat = nf90_get_var(NC_FID, NC_VID, slice, (/1, i/), (/n_node, 1/))
     if(stat /= NF90_NOERR) call netcdf_error(stat)
     call xf_write_scalar_timestep(XF_VID, times(i), n_node, real(slice(1,:), 4), stat)
+  end do
+  ! Spit out a newline
+  write(*,*)
+
+
+  stat = nf90_close(NC_FID)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
+
+
+  ! Open current input file
+  stat = nf90_open('fort.64.nc', NF90_NOWRITE, NC_FID)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
+
+  call xf_create_vector_dataset(XF_GID, 'Depth-averaged Velocity (64)', 'm/s', TS_SECONDS, -1, XF_VID, stat)
+  call xf_create_scalar_dataset(XF_GID, 'Depth-averaged Velocity (64) mag', 'm/s', TS_SECONDS, -1, XF_VID2, stat)
+
+  deallocate(slice)
+  allocate(slice(2, n_node))
+
+  stat = nf90_inq_varid(NC_FID, 'u-vel', NC_VID)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
+  stat = nf90_inq_varid(NC_FID, 'v-vel', NC_VID2)
+  if(stat /= NF90_NOERR) call netcdf_error(stat)
+
+  write(*,*) "Number of time steps: ", n_tstep
+  write(*,*) "Number of nodes: ", n_node
+  do i = 1, n_tstep
+    ! Write out a status indicater. Character 13 is a carrage return that moves
+    ! the cursor back to the beginning of the line.
+    write(*,'(A,A,I3,"%")', advance = 'no') char(13), " Copying Data: ", int(i*100.0/n_tstep)
+    stat = nf90_get_var(NC_FID, NC_VID, slice(1,:), (/1, i/), (/n_node, 1/))
+    stat = nf90_get_var(NC_FID, NC_VID2, slice(2,:), (/1, i/), (/n_node, 1/))
+    if(stat /= NF90_NOERR) call netcdf_error(stat)
+    call xf_write_vector_timestep(XF_VID, times(i), n_node, 2, real(slice, 4), stat)
+    call xf_write_scalar_timestep(XF_VID2, times(i), n_node, real(sqrt(slice(1,:)**2 + slice(2,:)**2), 4), stat)
   end do
   ! Spit out a newline
   write(*,*)
