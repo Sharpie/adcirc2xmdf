@@ -1,3 +1,14 @@
+! adcirc2xmdf
+! ==========
+! A command line tool for converting ADCIRC output to XMDF format.
+!
+!
+! Copyright (c) 2012, Charlie Sharpsteen
+! All rights reserved.
+!
+! Released under a 3-clause BSD license:
+!   http://www.opensource.org/licenses/BSD-3-Clause
+
 module adcirc2xmdf_globals
   implicit none
   ! XF_FID = ID value corresponding to opened XMDF file

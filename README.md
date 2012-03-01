@@ -4,6 +4,9 @@ adcirc2xmdf
 This is a simple utility for converting [ADCIRC][ADCIRC] output into [XMDF
 format][XMDF].  XMDF is a file format used by [SMS][SMS] and associated models.
 
+This work is released to the public under the terms of a [3-Clause BSD
+License][BSD].
+
 Features
 --------
 
@@ -25,6 +28,7 @@ Limitations
   * Reference times are not set for time steps.
 
 
+  [BSD]: http://www.opensource.org/licenses/BSD-3-Clause
   [ADCIRC]: http://www.adcirc.org
   [XMDF]: http://www.xmdf.org
   [SMS]: http://www.aquaveo.com/sms
